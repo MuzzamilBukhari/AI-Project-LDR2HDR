@@ -37,7 +37,10 @@ def main():
     
     # Initialize UNet model
     model = UNet(n_channels=3, n_classes=3, bilinear=True).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
+    
+    # Convert learning rate to float and initialize optimizer
+    lr = float(config["learning_rate"])
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     
     num_epochs = config["epochs"]
     output_dir = config["output_dir"]
@@ -78,5 +81,6 @@ def main():
                 sample_img_path = os.path.join(output_dir, f"sample_epoch_{epoch}.png")
                 save_sample_image(sample_output, filename=sample_img_path)
                 
+ 
 if __name__ == "__main__":
     main()
