@@ -16,29 +16,19 @@ def load_config(config_path):
     return config
 
 def main():
-    # Load configuration
     config = load_config("configs/config.yaml")["train"]
     device = torch.device(config["device"] if torch.cuda.is_available() else "cpu")
     
-    # Define basic transform (convert image to tensor)
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
+    transform = transforms.Compose([transforms.ToTensor()])
     
-    # Create dataset and dataloader
     dataset = LDRHDRDataset(root_dir=config["data_root"],
                             ldr_dir=config.get("ldr_dir", "LDR"),
                             hdr_dir=config.get("hdr_dir", "HDR"),
                             transform=transform)
-    dataloader = DataLoader(dataset,
-                            batch_size=config["batch_size"],
-                            shuffle=True,
-                            num_workers=config["num_workers"])
+    dataloader = DataLoader(dataset, batch_size=config["batch_size"],
+                            shuffle=True, num_workers=config["num_workers"])
     
-    # Initialize UNet model
     model = UNet(n_channels=3, n_classes=3, bilinear=True).to(device)
-    
-    # Convert learning rate to float and initialize optimizer
     lr = float(config["learning_rate"])
     optimizer = optim.Adam(model.parameters(), lr=lr)
     
@@ -64,7 +54,6 @@ def main():
         epoch_loss = running_loss / len(dataset)
         print(f"Epoch {epoch}/{num_epochs}, Loss: {epoch_loss:.4f}")
         
-        # Save checkpoint and sample output every 'save_interval' epochs
         if epoch % config["save_interval"] == 0:
             checkpoint_path = os.path.join(output_dir, f"checkpoint_epoch_{epoch}.pth")
             save_checkpoint({
@@ -81,6 +70,5 @@ def main():
                 sample_img_path = os.path.join(output_dir, f"sample_epoch_{epoch}.png")
                 save_sample_image(sample_output, filename=sample_img_path)
                 
- 
 if __name__ == "__main__":
     main()

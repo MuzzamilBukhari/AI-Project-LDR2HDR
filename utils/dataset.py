@@ -8,18 +8,17 @@ import numpy as np
 
 def read_hdr_image(path):
     """
-    Reads an HDR image using imageio.
-    Converts it to an 8-bit image for further processing.
-    (For training, you might want to preserve dynamic range—but this example converts to 8-bit.)
+    Reads an HDR image using imageio and converts it to an 8-bit image.
+    (If you prefer to preserve the full dynamic range for training, you can adjust this function.)
     """
     hdr = imageio.imread(path)
-    # If the HDR image is not 8-bit, normalize it to [0, 255]
-    if hdr.dtype != np.uint8:
-        hdr = (hdr / (np.max(hdr) + 1e-8) * 255).astype(np.uint8)
+    # Normalize to [0, 1] then scale to [0, 255] as 8-bit
+    hdr = (hdr / (np.max(hdr) + 1e-8)) * 255
+    hdr = np.clip(hdr, 0, 255).astype(np.uint8)
     return Image.fromarray(hdr).convert("RGB")
 
 def strip_ldr(name):
-    # Remove the trailing '_LDR' if it exists
+    # Remove trailing '_LDR' if it exists
     if name.endswith("_LDR"):
         return name[:-4]
     return name
@@ -34,7 +33,7 @@ class LDRHDRDataset(Dataset):
         ldr_files = sorted(os.listdir(self.ldr_path))
         hdr_files = sorted(os.listdir(self.hdr_path))
         
-        # Strip '_LDR' from LDR base filenames for matching
+        # Remove extensions and, for LDR, remove "_LDR" suffix
         ldr_names = {strip_ldr(os.path.splitext(f)[0]) for f in ldr_files}
         hdr_names = {os.path.splitext(f)[0] for f in hdr_files}
         
@@ -43,8 +42,9 @@ class LDRHDRDataset(Dataset):
         if not common_names:
             raise ValueError("No common image pairs found!")
         
-        # Construct full paths
+        # For LDR, assume filenames are stored as "<basename>_LDR.png"
         self.ldr_files = [os.path.join(self.ldr_path, name + "_LDR.png") for name in common_names]
+        # For HDR, look for common extensions
         self.hdr_files = []
         for name in common_names:
             found = False
@@ -61,12 +61,11 @@ class LDRHDRDataset(Dataset):
 
     def __len__(self):
         return len(self.ldr_files)
-    
+
     def __getitem__(self, idx):
-        # Load LDR image normally with PIL
         ldr_img = Image.open(self.ldr_files[idx]).convert("RGB")
         hdr_path = self.hdr_files[idx]
-        # Use imageio to read HDR files (if extension indicates HDR)
+        # Use imageio to read HDR images for .hdr or .exr
         if hdr_path.lower().endswith(('.hdr', '.exr')):
             hdr_img = read_hdr_image(hdr_path)
         else:
